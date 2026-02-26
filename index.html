@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Recomenda FilmeAi" />
+    <title>Recomenda FilmeAi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="header">
+        <img
+          class="logo-fixed"
+          src="assets/logo/logo-recomenda-filmeai.svg"
+          alt="Recomenda FilmeAí"
+        />
+
+        <button class="add-movie-block" type="button" id="open-add-modal">
+          <span class="add-movie-icon-wrap" aria-hidden="true">
+            <img src="assets/icons/icon-plus.svg" alt="" />
+          </span>
+          <span class="add-movie-text">Adicionar filme</span>
+        </button>
+      </header>
+
+      <main class="main-grid">
+        <section class="new-indications">
+          <h2 class="new-indications-title">
+            <img src="assets/icons/icon-fire.svg" alt="" aria-hidden="true" />
+            Novas indicações
+          </h2>
+
+          <article class="hero-layout">
+            <div class="poster-stack">
+              <div class="poster-gradient" aria-hidden="true"></div>
+              <img class="hero-poster" src="assets/images/placeholder.jpg" alt="Desconhecido" />
+            </div>
+
+            <div class="hero-info">
+              <p class="hero-kicker">
+                <img src="assets/icons/icon-fire.svg" alt="" aria-hidden="true" />
+                Novo
+              </p>
+              <span class="hero-label">Filme</span>
+              <h3 class="hero-name">Desconhecido</h3>
+
+              <p class="hero-by">
+                <img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" />
+                Indicado por <strong>Lucas</strong>
+              </p>
+
+              <div class="hero-tags">
+                <span class="platform-tag">Netflix</span>
+                <span class="platform-tag">Suspense</span>
+              </div>
+
+              <button class="trailer-btn" type="button" data-title="Desconhecido" data-by="Lucas">
+                <img src="assets/icons/icon-play.svg" alt="" aria-hidden="true" />
+                Assistir ao trailer
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section class="filter-section">
+          <h2 class="filter-title">
+            <img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" />
+            Filtrar por membro
+          </h2>
+
+          <div class="member-chips" id="member-chips"></div>
+        </section>
+
+        <section class="movies-section">
+          <div class="movies-grid" id="movies-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modal-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
+        <div class="modal-header">
+          <h3 id="add-modal-title">Adicionar recomendação</h3>
+          <button class="modal-close" type="button" id="modal-close" aria-label="Fechar modal">
+            ×
+          </button>
+        </div>
+
+        <form class="modal-form" id="add-form" novalidate>
+          <div class="field">
+            <span class="field-label">Tipo</span>
+            <div class="segmented-control" role="radiogroup" aria-label="Tipo">
+              <input type="radio" id="tipo-filme" name="tipo" value="filme" checked />
+              <label for="tipo-filme">Filme</label>
+              <input type="radio" id="tipo-serie" name="tipo" value="serie" />
+              <label for="tipo-serie">Série</label>
+            </div>
+          </div>
+
+          <div class="field" data-field="titulo">
+            <label for="titulo-input" class="field-label">Nome do filme</label>
+            <input id="titulo-input" name="titulo" type="text" maxlength="60" required />
+            <p class="field-error" id="error-titulo"></p>
+          </div>
+
+          <div class="field" data-field="indicadoPor">
+            <label for="indicado-select" class="field-label">Indicado por</label>
+            <select id="indicado-select" name="indicadoPor" required></select>
+            <input
+              id="indicado-novo"
+              name="indicadoNovo"
+              type="text"
+              maxlength="24"
+              placeholder="Nome do novo membro"
+              hidden
+            />
+            <p class="field-error" id="error-indicadoPor"></p>
+          </div>
+
+          <div class="field" data-field="nota">
+            <label for="nota-input" class="field-label">Nota (0 a 10)</label>
+            <div class="rating-wrap">
+              <input id="nota-input" name="nota" type="number" min="0" max="10" step="0.5" required />
+              <input id="nota-slider" type="range" min="0" max="10" step="0.5" value="5" />
+            </div>
+            <p class="field-error" id="error-nota"></p>
+          </div>
+
+          <div class="field" data-field="plataforma">
+            <label for="plataforma-select" class="field-label">Plataforma</label>
+            <select id="plataforma-select" name="plataforma" required>
+              <option value="">Selecione</option>
+              <option value="Netflix">Netflix</option>
+              <option value="Prime Video">Prime Video</option>
+              <option value="Max">Max</option>
+              <option value="Disney+">Disney+</option>
+              <option value="Apple TV+">Apple TV+</option>
+            </select>
+            <p class="field-error" id="error-plataforma"></p>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Gênero</span>
+            <div class="genre-chips" id="genre-chips"></div>
+          </div>
+
+          <div class="field">
+            <label for="trailer-input" class="field-label">Link do trailer (opcional)</label>
+            <input id="trailer-input" name="trailer" type="url" placeholder="https://..." />
+          </div>
+
+          <button type="submit" class="modal-action" id="publish-btn" disabled>
+            Publicar recomendação
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
