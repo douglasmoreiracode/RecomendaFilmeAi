@@ -72,7 +72,8 @@ const state = {
   activeMember: "Todos",
   recommendations: [...initialRecommendations],
   selectedGenres: [],
-  selectedCover: "assets/images/placeholder.jpg"
+  selectedCover: "assets/images/placeholder.jpg",
+  editingId: null
 };
 
 let lastFocusedElement = null;
@@ -132,6 +133,9 @@ function createMovieCard(item) {
   return `
     <article class="movie-card" aria-label="${item.titulo}">
       <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
+      <button class="edit-card-btn" type="button" data-edit-id="${item.id}" aria-label="Editar recomendação">
+        ✎
+      </button>
       <span class="movie-rating ${ratingColor}">${item.nota}</span>
       <div class="movie-body">
         <p class="movie-type">${capitalizeType(item.tipo)}</p>
@@ -197,7 +201,7 @@ function showToast(message) {
   }, 2800);
 }
 
-function openModal() {
+function openModal(recommendation = null) {
   if (!modalBackdrop || !addForm) {
     return;
   }
@@ -210,6 +214,7 @@ function openModal() {
 
   addForm.reset();
   state.selectedGenres = [];
+  state.editingId = recommendation?.id ?? null;
   state.selectedCover = "assets/images/placeholder.jpg";
   if (coverPreview) {
     coverPreview.src = state.selectedCover;
@@ -218,6 +223,59 @@ function openModal() {
   clearErrors();
   toggleCustomMemberField();
   syncRatingInputs("5");
+
+  if (publishBtn) {
+    publishBtn.textContent = state.editingId ? "Salvar alterações" : "Publicar recomendação";
+  }
+
+  if (recommendation) {
+    const tipoInput = addForm.querySelector(`input[name="tipo"][value="${recommendation.tipo}"]`);
+    if (tipoInput instanceof HTMLInputElement) {
+      tipoInput.checked = true;
+    }
+
+    const tituloInput = addForm.querySelector("#titulo-input");
+    if (tituloInput instanceof HTMLInputElement) {
+      tituloInput.value = recommendation.titulo;
+    }
+
+    if (indicadoSelect) {
+      indicadoSelect.value = recommendation.indicadoPor;
+      if (!indicadoSelect.value) {
+        indicadoSelect.value = "__novo__";
+      }
+    }
+
+    if (indicadoSelect?.value === "__novo__" && indicadoNovoInput) {
+      indicadoNovoInput.value = recommendation.indicadoPor;
+    }
+
+    syncRatingInputs(String(recommendation.nota));
+
+    const plataformaInput = addForm.querySelector("#plataforma-select");
+    if (plataformaInput instanceof HTMLSelectElement) {
+      plataformaInput.value = recommendation.plataforma;
+    }
+
+    const trailerInput = addForm.querySelector("#trailer-input");
+    if (trailerInput instanceof HTMLInputElement) {
+      trailerInput.value = recommendation.trailer || "";
+    }
+
+    state.selectedGenres = [...recommendation.generos];
+    state.selectedCover = recommendation.capa || "assets/images/placeholder.jpg";
+    if (coverPreview) {
+      coverPreview.src = state.selectedCover;
+    }
+
+    if (coverUrlInput instanceof HTMLInputElement) {
+      coverUrlInput.value = recommendation.capa?.startsWith("http") ? recommendation.capa : "";
+    }
+
+    renderGenreChips();
+    toggleCustomMemberField();
+  }
+
   updatePublishButtonState();
 
   const firstField = document.querySelector("#titulo-input");
@@ -355,7 +413,7 @@ function buildPayload() {
   const nota = Number(formData.get("nota"));
 
   return {
-    id: `r${Date.now()}`,
+    id: state.editingId ?? `r${Date.now()}`,
     tipo: String(formData.get("tipo") ?? "filme"),
     titulo: String(formData.get("titulo") ?? "").trim(),
     indicadoPor: getSelectedMember(),
@@ -364,7 +422,8 @@ function buildPayload() {
     generos: [...state.selectedGenres],
     capa: state.selectedCover,
     trailer: String(formData.get("trailer") ?? "").trim(),
-    criadoEm: Date.now()
+    criadoEm:
+      state.recommendations.find((item) => item.id === state.editingId)?.criadoEm ?? Date.now()
   };
 }
 
@@ -407,7 +466,8 @@ function setLoadingState(isLoading) {
   }
 
   publishBtn.classList.toggle("is-loading", isLoading);
-  publishBtn.textContent = isLoading ? "Publicando..." : "Publicar recomendação";
+  const idleText = state.editingId ? "Salvar alterações" : "Publicar recomendação";
+  publishBtn.textContent = isLoading ? (state.editingId ? "Salvando..." : "Publicando...") : idleText;
   publishBtn.disabled = isLoading || Object.keys(validateForm()).length > 0;
 }
 
@@ -429,7 +489,13 @@ function handleSubmit(event) {
   setLoadingState(true);
 
   setTimeout(() => {
-    state.recommendations = [payload, ...state.recommendations];
+    if (state.editingId) {
+      state.recommendations = state.recommendations.map((item) =>
+        item.id === state.editingId ? payload : item
+      );
+    } else {
+      state.recommendations = [payload, ...state.recommendations];
+    }
 
     if (state.activeMember !== "Todos" && state.activeMember !== payload.indicadoPor) {
       state.activeMember = "Todos";
@@ -440,7 +506,8 @@ function handleSubmit(event) {
     renderGrid();
     setLoadingState(false);
     closeModal();
-    showToast("Recomendação adicionada com sucesso 🎬");
+    showToast(state.editingId ? "Recomendação alterada com sucesso ✨" : "Recomendação adicionada com sucesso 🎬");
+    state.editingId = null;
   }, 700);
 }
 
@@ -467,6 +534,16 @@ function setupEvents() {
       return;
     }
 
+    const editBtn = target.closest(".edit-card-btn");
+    if (editBtn instanceof HTMLButtonElement) {
+      const editId = editBtn.dataset.editId;
+      const recommendation = state.recommendations.find((item) => item.id === editId);
+      if (recommendation) {
+        openModal(recommendation);
+      }
+      return;
+    }
+
     const trailerBtn = target.closest(".trailer-btn");
     if (!(trailerBtn instanceof HTMLButtonElement)) {
       return;
@@ -481,7 +558,7 @@ function setupEvents() {
     showToast("Trailer não informado para esta recomendação.");
   });
 
-  openAddModalBtn?.addEventListener("click", openModal);
+  openAddModalBtn?.addEventListener("click", () => openModal());
   modalClose?.addEventListener("click", closeModal);
 
   modalBackdrop?.addEventListener("click", (event) => {
