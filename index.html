@@ -110,6 +110,25 @@
             <p class="field-error" id="error-titulo"></p>
           </div>
 
+          <div class="field">
+            <span class="field-label">Capa do filme</span>
+            <div class="cover-grid">
+              <input
+                id="capa-url-input"
+                name="capaUrl"
+                type="url"
+                placeholder="URL da capa (opcional)"
+              />
+              <input id="capa-file-input" name="capaFile" type="file" accept="image/*" />
+            </div>
+            <img
+              class="cover-preview"
+              id="capa-preview"
+              src="assets/images/placeholder.jpg"
+              alt="Pré-visualização da capa"
+            />
+          </div>
+
           <div class="field" data-field="indicadoPor">
             <label for="indicado-select" class="field-label">Indicado por</label>
             <select id="indicado-select" name="indicadoPor" required></select>

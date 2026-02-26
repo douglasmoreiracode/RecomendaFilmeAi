@@ -11,6 +11,9 @@ const notaInput = document.querySelector("#nota-input");
 const notaSlider = document.querySelector("#nota-slider");
 const genreChipsRoot = document.querySelector("#genre-chips");
 const toast = document.querySelector("#toast");
+const coverUrlInput = document.querySelector("#capa-url-input");
+const coverFileInput = document.querySelector("#capa-file-input");
+const coverPreview = document.querySelector("#capa-preview");
 
 const availableGenres = ["Suspense", "Drama", "Ação", "Comédia", "Ficção", "Terror"];
 
@@ -23,6 +26,7 @@ const initialRecommendations = [
     nota: 8,
     plataforma: "Netflix",
     generos: ["Suspense"],
+    capa: "assets/images/placeholder.jpg",
     trailer: "",
     criadoEm: Date.now() - 40000
   },
@@ -34,6 +38,7 @@ const initialRecommendations = [
     nota: 9.5,
     plataforma: "Netflix",
     generos: ["Suspense"],
+    capa: "assets/images/placeholder.jpg",
     trailer: "",
     criadoEm: Date.now() - 30000
   },
@@ -45,6 +50,7 @@ const initialRecommendations = [
     nota: 9.2,
     plataforma: "Apple TV+",
     generos: ["Drama"],
+    capa: "assets/images/placeholder.jpg",
     trailer: "",
     criadoEm: Date.now() - 20000
   },
@@ -56,15 +62,17 @@ const initialRecommendations = [
     nota: 8.9,
     plataforma: "Max",
     generos: ["Ficção"],
+    capa: "assets/images/placeholder.jpg",
     trailer: "",
     criadoEm: Date.now() - 10000
   }
 ];
 
 const state = {
-  activeMember: "Lucas",
+  activeMember: "Todos",
   recommendations: [...initialRecommendations],
-  selectedGenres: []
+  selectedGenres: [],
+  selectedCover: "assets/images/placeholder.jpg"
 };
 
 let lastFocusedElement = null;
@@ -123,7 +131,7 @@ function createMovieCard(item) {
 
   return `
     <article class="movie-card" aria-label="${item.titulo}">
-      <img class="movie-image" src="assets/images/placeholder.jpg" alt="${item.titulo}" />
+      <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
       <span class="movie-rating ${ratingColor}">${item.nota}</span>
       <div class="movie-body">
         <p class="movie-type">${capitalizeType(item.tipo)}</p>
@@ -202,6 +210,10 @@ function openModal() {
 
   addForm.reset();
   state.selectedGenres = [];
+  state.selectedCover = "assets/images/placeholder.jpg";
+  if (coverPreview) {
+    coverPreview.src = state.selectedCover;
+  }
   renderGenreChips();
   clearErrors();
   toggleCustomMemberField();
@@ -350,9 +362,43 @@ function buildPayload() {
     nota: Number(nota.toFixed(1)),
     plataforma: String(formData.get("plataforma") ?? "").trim(),
     generos: [...state.selectedGenres],
+    capa: state.selectedCover,
     trailer: String(formData.get("trailer") ?? "").trim(),
     criadoEm: Date.now()
   };
+}
+
+function updateCoverFromUrl() {
+  const url = String(coverUrlInput?.value ?? "").trim();
+  if (!url) {
+    state.selectedCover = "assets/images/placeholder.jpg";
+  } else {
+    state.selectedCover = url;
+  }
+
+  if (coverPreview) {
+    coverPreview.src = state.selectedCover;
+  }
+}
+
+function updateCoverFromFile(file) {
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = typeof reader.result === "string" ? reader.result : "";
+    if (!result) {
+      return;
+    }
+
+    state.selectedCover = result;
+    if (coverPreview) {
+      coverPreview.src = state.selectedCover;
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 function setLoadingState(isLoading) {
@@ -477,6 +523,17 @@ function setupEvents() {
   notaSlider?.addEventListener("input", () => {
     syncRatingInputs(notaSlider.value);
     updatePublishButtonState();
+  });
+
+  coverUrlInput?.addEventListener("input", updateCoverFromUrl);
+
+  coverFileInput?.addEventListener("change", () => {
+    const file = coverFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    updateCoverFromFile(file);
   });
 
   genreChipsRoot?.addEventListener("click", (event) => {
