@@ -417,6 +417,8 @@ select {
   backdrop-filter: blur(20px);
   box-shadow: var(--card-shadow);
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
 }
 
 .movie-card::before {
@@ -425,6 +427,13 @@ select {
   inset: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 24%);
   pointer-events: none;
+}
+
+.movie-card:hover,
+.movie-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.44);
 }
 
 .movie-card.is-highlighted {
@@ -533,6 +542,7 @@ select {
 
 .movie-card .trailer-btn {
   width: 100%;
+  pointer-events: none;
 }
 
 .modal-backdrop {
@@ -863,6 +873,97 @@ select {
 
 .modal-delete[hidden] {
   display: none;
+}
+
+.trailer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.84);
+  backdrop-filter: blur(12px);
+  z-index: 80;
+}
+
+.trailer-modal-backdrop[hidden] {
+  display: none;
+}
+
+.trailer-modal {
+  width: min(920px, 100%);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(27, 27, 27, 0.98) 0%, rgba(14, 14, 14, 0.98) 100%);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.trailer-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 10px;
+}
+
+.trailer-modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.trailer-modal-close {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.trailer-frame-wrap {
+  padding: 0 20px 20px;
+}
+
+.trailer-embed {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 22px;
+  background: #090909;
+  display: block;
+}
+
+.trailer-fallback {
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.trailer-fallback p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.trailer-fallback a {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  color: #161616;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .toast {

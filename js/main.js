@@ -14,6 +14,10 @@ const modalTitle = document.querySelector("#add-modal-title");
 const addForm = document.querySelector("#add-form");
 const deleteBtn = document.querySelector("#delete-btn");
 const publishBtn = document.querySelector("#publish-btn");
+const trailerModalBackdrop = document.querySelector("#trailer-modal-backdrop");
+const trailerModalClose = document.querySelector("#trailer-modal-close");
+const trailerModalTitle = document.querySelector("#trailer-modal-title");
+const trailerFrameWrap = document.querySelector("#trailer-frame-wrap");
 const indicadoSelect = document.querySelector("#indicado-select");
 const indicadoNovoInput = document.querySelector("#indicado-novo");
 const notaInput = document.querySelector("#nota-input");
@@ -87,6 +91,7 @@ const state = {
 };
 
 let lastFocusedElement = null;
+let lastTrailerFocusedElement = null;
 let toastTimer = null;
 
 function getMembers() {
@@ -169,6 +174,90 @@ function buildHeroSummary(item) {
   return `${item.indicadoPor} colocou este ${tipo} no radar do grupo com clima de ${generos} em ${item.plataforma}.`;
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function getTrailerEmbedUrl(url) {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const host = parsedUrl.hostname.replace(/^www\./, "");
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const videoId = parsedUrl.searchParams.get("v");
+      return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : "";
+    }
+
+    if (host === "youtu.be") {
+      const videoId = parsedUrl.pathname.slice(1);
+      return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : "";
+    }
+
+    if (host === "vimeo.com") {
+      const videoId = parsedUrl.pathname.split("/").filter(Boolean)[0];
+      return videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=1` : "";
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function closeTrailerModal() {
+  if (!trailerModalBackdrop || !trailerFrameWrap) {
+    return;
+  }
+
+  trailerModalBackdrop.hidden = true;
+  trailerFrameWrap.innerHTML = "";
+
+  if (lastTrailerFocusedElement instanceof HTMLElement) {
+    lastTrailerFocusedElement.focus();
+  }
+}
+
+function openTrailerModal({ title, trailer }) {
+  if (!trailerModalBackdrop || !trailerFrameWrap) {
+    return;
+  }
+
+  if (!trailer) {
+    showToast("Trailer não informado para esta recomendação.");
+    return;
+  }
+
+  lastTrailerFocusedElement = document.activeElement;
+  const embedUrl = getTrailerEmbedUrl(trailer);
+
+  if (trailerModalTitle) {
+    trailerModalTitle.textContent = `Trailer de ${title}`;
+  }
+
+  if (embedUrl) {
+    trailerFrameWrap.innerHTML = `<iframe class="trailer-embed" src="${embedUrl}" title="Trailer de ${escapeHtml(title)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  } else {
+    trailerFrameWrap.innerHTML = `
+      <div class="trailer-fallback">
+        <strong>Este trailer nao pode ser incorporado diretamente.</strong>
+        <p>Abra o link original para assistir ao video completo em uma nova aba.</p>
+        <a href="${trailer}" target="_blank" rel="noopener noreferrer">Abrir trailer</a>
+      </div>
+    `;
+  }
+
+  trailerModalBackdrop.hidden = false;
+  trailerModalClose?.focus();
+}
+
 function renderHero() {
   const filtered = getFilteredRecommendations();
   const featured = getLatestRecommendation(filtered) ?? getLatestRecommendation();
@@ -247,7 +336,7 @@ function createMovieCard(item) {
     .join("");
 
   return `
-    <article class="movie-card ${highlightedClass}" aria-label="${item.titulo}">
+    <article class="movie-card ${highlightedClass}" aria-label="${item.titulo}" data-trailer="${item.trailer}" data-title="${item.titulo}" tabindex="0" role="button">
       <div class="card-image-wrap">
         <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
         <button class="edit-card-btn" type="button" data-edit-id="${item.id}" aria-label="Editar recomendação">
@@ -705,28 +794,39 @@ function setupEvents() {
       return;
     }
 
-    const trailerBtn = target.closest(".trailer-btn");
-    if (!(trailerBtn instanceof HTMLButtonElement)) {
+    const movieCard = target.closest(".movie-card");
+    if (!(movieCard instanceof HTMLElement)) {
       return;
     }
 
-    const trailer = trailerBtn.dataset.trailer;
-    if (trailer) {
-      window.open(trailer, "_blank", "noopener,noreferrer");
+    openTrailerModal({
+      title: movieCard.dataset.title || "Trailer",
+      trailer: movieCard.dataset.trailer || ""
+    });
+  });
+
+  gridRoot?.addEventListener("keydown", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.classList.contains("movie-card")) {
       return;
     }
 
-    showToast("Trailer não informado para esta recomendação.");
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    openTrailerModal({
+      title: target.dataset.title || "Trailer",
+      trailer: target.dataset.trailer || ""
+    });
   });
 
   heroTrailerBtn?.addEventListener("click", () => {
-    const trailer = heroTrailerBtn.dataset.trailer;
-    if (trailer) {
-      window.open(trailer, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    showToast("Trailer não informado para esta recomendação.");
+    openTrailerModal({
+      title: heroName?.textContent || "Trailer",
+      trailer: heroTrailerBtn.dataset.trailer || ""
+    });
   });
 
   openAddModalBtn?.addEventListener("click", () => openModal());
@@ -739,9 +839,21 @@ function setupEvents() {
     }
   });
 
+  trailerModalClose?.addEventListener("click", closeTrailerModal);
+
+  trailerModalBackdrop?.addEventListener("click", (event) => {
+    if (event.target === trailerModalBackdrop) {
+      closeTrailerModal();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modalBackdrop && !modalBackdrop.hidden) {
       closeModal();
+    }
+
+    if (event.key === "Escape" && trailerModalBackdrop && !trailerModalBackdrop.hidden) {
+      closeTrailerModal();
     }
   });
 

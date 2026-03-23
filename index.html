@@ -193,12 +193,23 @@
             <button type="button" class="modal-delete" id="delete-btn" hidden>
               Remover recomendação
             </button>
-
-          <button type="submit" class="modal-action" id="publish-btn" disabled>
-            Publicar recomendação
-          </button>
+            <button type="submit" class="modal-action" id="publish-btn" disabled>
+              Publicar recomendação
+            </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div class="trailer-modal-backdrop" id="trailer-modal-backdrop" hidden>
+      <div class="trailer-modal" role="dialog" aria-modal="true" aria-labelledby="trailer-modal-title">
+        <div class="trailer-modal-header">
+          <h3 id="trailer-modal-title">Trailer</h3>
+          <button class="trailer-modal-close" type="button" id="trailer-modal-close" aria-label="Fechar trailer">
+            ×
+          </button>
+        </div>
+        <div class="trailer-frame-wrap" id="trailer-frame-wrap"></div>
       </div>
     </div>
 
