@@ -10,6 +10,7 @@ const heroTrailerBtn = document.querySelector("#hero-trailer-btn");
 const openAddModalBtn = document.querySelector("#open-add-modal");
 const modalBackdrop = document.querySelector("#modal-backdrop");
 const modalClose = document.querySelector("#modal-close");
+const modalTitle = document.querySelector("#add-modal-title");
 const addForm = document.querySelector("#add-form");
 const deleteBtn = document.querySelector("#delete-btn");
 const publishBtn = document.querySelector("#publish-btn");
@@ -344,6 +345,10 @@ function openModal(recommendation = null) {
 
   if (publishBtn) {
     publishBtn.textContent = state.editingId ? "Salvar alterações" : "Publicar recomendação";
+  }
+
+  if (modalTitle) {
+    modalTitle.textContent = state.editingId ? "Editar recomendação" : "Adicionar recomendação";
   }
 
   if (deleteBtn) {
