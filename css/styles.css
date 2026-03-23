@@ -836,6 +836,35 @@ select {
   opacity: 0.72;
 }
 
+.modal-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.modal-delete {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(255, 113, 139, 0.48);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 64, 96, 0.1);
+  color: #ff9db1;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.modal-delete:hover,
+.modal-delete:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(255, 64, 96, 0.16);
+  border-color: rgba(255, 113, 139, 0.72);
+}
+
+.modal-delete[hidden] {
+  display: none;
+}
+
 .toast {
   position: fixed;
   right: 18px;

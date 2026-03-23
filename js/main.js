@@ -11,6 +11,7 @@ const openAddModalBtn = document.querySelector("#open-add-modal");
 const modalBackdrop = document.querySelector("#modal-backdrop");
 const modalClose = document.querySelector("#modal-close");
 const addForm = document.querySelector("#add-form");
+const deleteBtn = document.querySelector("#delete-btn");
 const publishBtn = document.querySelector("#publish-btn");
 const indicadoSelect = document.querySelector("#indicado-select");
 const indicadoNovoInput = document.querySelector("#indicado-novo");
@@ -89,6 +90,10 @@ let toastTimer = null;
 
 function getMembers() {
   return state.members;
+}
+
+function syncMembersFromRecommendations() {
+  state.members = [...new Set(state.recommendations.map((item) => item.indicadoPor))];
 }
 
 function capitalizeType(tipo) {
@@ -341,6 +346,10 @@ function openModal(recommendation = null) {
     publishBtn.textContent = state.editingId ? "Salvar alterações" : "Publicar recomendação";
   }
 
+  if (deleteBtn) {
+    deleteBtn.hidden = !state.editingId;
+  }
+
   if (recommendation) {
     const tipoInput = addForm.querySelector(`input[name="tipo"][value="${recommendation.tipo}"]`);
     if (tipoInput instanceof HTMLInputElement) {
@@ -410,6 +419,8 @@ function closeModal() {
   if (lastFocusedElement instanceof HTMLElement) {
     lastFocusedElement.focus();
   }
+
+  state.editingId = null;
 }
 
 function syncRatingInputs(value) {
@@ -600,6 +611,7 @@ function handleSubmit(event) {
   }
 
   const payload = buildPayload();
+  const isEditing = Boolean(state.editingId);
   setLoadingState(true);
 
   setTimeout(() => {
@@ -621,9 +633,37 @@ function handleSubmit(event) {
     renderGrid();
     setLoadingState(false);
     closeModal();
-    showToast(state.editingId ? "Recomendação alterada com sucesso ✨" : "Recomendação adicionada com sucesso 🎬");
-    state.editingId = null;
+    showToast(isEditing ? "Recomendação alterada com sucesso ✨" : "Recomendação adicionada com sucesso 🎬");
   }, 700);
+}
+
+function handleDeleteRecommendation() {
+  if (!state.editingId) {
+    return;
+  }
+
+  const deletedId = state.editingId;
+  const deletedRecommendation = state.recommendations.find((item) => item.id === deletedId);
+  if (!deletedRecommendation) {
+    return;
+  }
+
+  state.recommendations = state.recommendations.filter((item) => item.id !== deletedId);
+  syncMembersFromRecommendations();
+
+  if (
+    state.activeMember !== "Todos" &&
+    !state.recommendations.some((item) => item.indicadoPor === state.activeMember)
+  ) {
+    state.activeMember = "Todos";
+  }
+
+  renderChips();
+  renderMemberSelect();
+  renderHero();
+  renderGrid();
+  closeModal();
+  showToast("Recomendação removida com sucesso.");
 }
 
 function setupEvents() {
@@ -686,6 +726,7 @@ function setupEvents() {
 
   openAddModalBtn?.addEventListener("click", () => openModal());
   modalClose?.addEventListener("click", closeModal);
+  deleteBtn?.addEventListener("click", handleDeleteRecommendation);
 
   modalBackdrop?.addEventListener("click", (event) => {
     if (event.target === modalBackdrop) {
