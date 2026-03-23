@@ -77,6 +77,7 @@ const initialRecommendations = [
 
 const state = {
   activeMember: "Todos",
+  members: [...new Set(initialRecommendations.map((item) => item.indicadoPor))],
   recommendations: [...initialRecommendations],
   selectedGenres: [],
   selectedCover: "assets/images/placeholder.jpg",
@@ -87,7 +88,7 @@ let lastFocusedElement = null;
 let toastTimer = null;
 
 function getMembers() {
-  return [...new Set(state.recommendations.map((item) => item.indicadoPor))];
+  return state.members;
 }
 
 function capitalizeType(tipo) {
@@ -120,11 +121,12 @@ function renderChips() {
   chipsRoot.innerHTML = members.map(createChip).join("");
 }
 
-function renderMemberSelect() {
+function renderMemberSelect(selectedValue = "") {
   if (!indicadoSelect) {
     return;
   }
 
+  const nextSelectedValue = selectedValue || indicadoSelect.value || "";
   const options = [
     '<option value="">Selecione</option>',
     ...getMembers().map((member) => `<option value="${member}">${member}</option>`),
@@ -132,6 +134,23 @@ function renderMemberSelect() {
   ];
 
   indicadoSelect.innerHTML = options.join("");
+
+  if (
+    nextSelectedValue &&
+    [...indicadoSelect.options].some((option) => option.value === nextSelectedValue)
+  ) {
+    indicadoSelect.value = nextSelectedValue;
+  }
+}
+
+function ensureMemberExists(name) {
+  const normalizedName = normalizeName(name);
+  if (!normalizedName || state.members.includes(normalizedName)) {
+    return normalizedName;
+  }
+
+  state.members = [...state.members, normalizedName];
+  return normalizedName;
 }
 
 function buildTagMarkup(tags) {
@@ -305,6 +324,7 @@ function openModal(recommendation = null) {
     modalBackdrop.classList.add("is-open");
   });
 
+  renderMemberSelect(recommendation?.indicadoPor ?? "");
   addForm.reset();
   state.selectedGenres = [];
   state.editingId = recommendation?.id ?? null;
@@ -504,12 +524,13 @@ function toggleCustomMemberField() {
 function buildPayload() {
   const formData = new FormData(addForm);
   const nota = Number(formData.get("nota"));
+  const indicadoPor = ensureMemberExists(getSelectedMember());
 
   return {
     id: state.editingId ?? `r${Date.now()}`,
     tipo: String(formData.get("tipo") ?? "filme"),
     titulo: String(formData.get("titulo") ?? "").trim(),
-    indicadoPor: getSelectedMember(),
+    indicadoPor,
     nota: Number(nota.toFixed(1)),
     plataforma: String(formData.get("plataforma") ?? "").trim(),
     generos: [...state.selectedGenres],
@@ -695,6 +716,17 @@ function setupEvents() {
   indicadoSelect?.addEventListener("change", () => {
     toggleCustomMemberField();
     updatePublishButtonState();
+  });
+
+  indicadoNovoInput?.addEventListener("blur", () => {
+    const normalizedName = normalizeName(indicadoNovoInput.value);
+    if (!normalizedName) {
+      return;
+    }
+
+    ensureMemberExists(normalizedName);
+    renderMemberSelect("__novo__");
+    indicadoNovoInput.value = normalizedName;
   });
 
   notaInput?.addEventListener("input", () => {
