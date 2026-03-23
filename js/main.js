@@ -1,5 +1,12 @@
 const chipsRoot = document.querySelector("#member-chips");
 const gridRoot = document.querySelector("#movies-grid");
+const heroPoster = document.querySelector("#hero-poster");
+const heroLabel = document.querySelector("#hero-label");
+const heroName = document.querySelector("#hero-name");
+const heroSummary = document.querySelector("#hero-summary");
+const heroBy = document.querySelector("#hero-by");
+const heroTags = document.querySelector("#hero-tags");
+const heroTrailerBtn = document.querySelector("#hero-trailer-btn");
 const openAddModalBtn = document.querySelector("#open-add-modal");
 const modalBackdrop = document.querySelector("#modal-backdrop");
 const modalClose = document.querySelector("#modal-close");
@@ -95,6 +102,10 @@ function getFilteredRecommendations() {
   return state.recommendations.filter((item) => item.indicadoPor === state.activeMember);
 }
 
+function getLatestRecommendation(items = state.recommendations) {
+  return [...items].sort((first, second) => second.criadoEm - first.criadoEm)[0] ?? null;
+}
+
 function createChip(member) {
   const activeClass = member === state.activeMember ? "is-active" : "";
   return `<button type="button" class="chip ${activeClass}" data-member="${member}">${member}</button>`;
@@ -123,20 +134,102 @@ function renderMemberSelect() {
   indicadoSelect.innerHTML = options.join("");
 }
 
+function buildTagMarkup(tags) {
+  return tags.map((tag) => `<span class="platform-tag">${tag}</span>`).join("");
+}
+
+function buildHeroSummary(item) {
+  const tipo = capitalizeType(item.tipo).toLowerCase();
+  const generos = item.generos.length ? item.generos.join(", ").toLowerCase() : "novas descobertas";
+  return `${item.indicadoPor} colocou este ${tipo} no radar do grupo com clima de ${generos} em ${item.plataforma}.`;
+}
+
+function renderHero() {
+  const filtered = getFilteredRecommendations();
+  const featured = getLatestRecommendation(filtered) ?? getLatestRecommendation();
+
+  if (!featured) {
+    if (heroPoster instanceof HTMLImageElement) {
+      heroPoster.src = "assets/images/placeholder.jpg";
+      heroPoster.alt = "Nenhuma recomendação";
+    }
+
+    if (heroLabel) {
+      heroLabel.textContent = "Filme ou série";
+    }
+
+    if (heroName) {
+      heroName.textContent = "Adicione a primeira recomendação";
+    }
+
+    if (heroSummary) {
+      heroSummary.textContent = "Publique uma sugestão para abrir a lista de recomendações.";
+    }
+
+    if (heroBy) {
+      heroBy.innerHTML =
+        '<img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" /> Indicado por <strong>ninguém ainda</strong>';
+    }
+
+    if (heroTags) {
+      heroTags.innerHTML = "";
+    }
+
+    if (heroTrailerBtn instanceof HTMLButtonElement) {
+      heroTrailerBtn.dataset.trailer = "";
+      heroTrailerBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (heroPoster instanceof HTMLImageElement) {
+    heroPoster.src = featured.capa || "assets/images/placeholder.jpg";
+    heroPoster.alt = featured.titulo;
+  }
+
+  if (heroLabel) {
+    heroLabel.textContent = capitalizeType(featured.tipo);
+  }
+
+  if (heroName) {
+    heroName.textContent = featured.titulo;
+  }
+
+  if (heroSummary) {
+    heroSummary.textContent = buildHeroSummary(featured);
+  }
+
+  if (heroBy) {
+    heroBy.innerHTML = `<img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" /> Indicado por <strong>${featured.indicadoPor}</strong>`;
+  }
+
+  if (heroTags) {
+    heroTags.innerHTML = buildTagMarkup([featured.plataforma, ...featured.generos.slice(0, 2)]);
+  }
+
+  if (heroTrailerBtn instanceof HTMLButtonElement) {
+    heroTrailerBtn.dataset.trailer = featured.trailer;
+    heroTrailerBtn.setAttribute("aria-label", `Assistir ao trailer de ${featured.titulo}`);
+  }
+}
+
 function createMovieCard(item) {
   const ratingColor = item.nota >= 9 ? "purple" : "red";
+  const highlightedClass = item.nota >= 9 ? "is-highlighted" : "";
   const generosMarkup = item.generos
     .slice(0, 2)
     .map((genero) => `<span class="card-tag">${genero}</span>`)
     .join("");
 
   return `
-    <article class="movie-card" aria-label="${item.titulo}">
-      <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
-      <button class="edit-card-btn" type="button" data-edit-id="${item.id}" aria-label="Editar recomendação">
-        ✎
-      </button>
-      <span class="movie-rating ${ratingColor}">${item.nota}</span>
+    <article class="movie-card ${highlightedClass}" aria-label="${item.titulo}">
+      <div class="card-image-wrap">
+        <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
+        <button class="edit-card-btn" type="button" data-edit-id="${item.id}" aria-label="Editar recomendação">
+          ✎
+        </button>
+        <span class="movie-rating ${ratingColor}">${item.nota}</span>
+      </div>
       <div class="movie-body">
         <p class="movie-type">${capitalizeType(item.tipo)}</p>
         <h3 class="movie-title">${item.titulo}</h3>
@@ -165,7 +258,7 @@ function renderGrid() {
   const filtered = getFilteredRecommendations();
 
   if (!filtered.length) {
-    gridRoot.innerHTML = "<p>Nenhuma indicação para este membro.</p>";
+    gridRoot.innerHTML = '<p class="empty-state">Nenhuma indicação para este membro no momento.</p>';
     return;
   }
 
@@ -503,6 +596,7 @@ function handleSubmit(event) {
 
     renderChips();
     renderMemberSelect();
+    renderHero();
     renderGrid();
     setLoadingState(false);
     closeModal();
@@ -525,6 +619,7 @@ function setupEvents() {
 
     state.activeMember = member;
     renderChips();
+    renderHero();
     renderGrid();
   });
 
@@ -550,6 +645,16 @@ function setupEvents() {
     }
 
     const trailer = trailerBtn.dataset.trailer;
+    if (trailer) {
+      window.open(trailer, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    showToast("Trailer não informado para esta recomendação.");
+  });
+
+  heroTrailerBtn?.addEventListener("click", () => {
+    const trailer = heroTrailerBtn.dataset.trailer;
     if (trailer) {
       window.open(trailer, "_blank", "noopener,noreferrer");
       return;
@@ -636,6 +741,7 @@ function setupEvents() {
 
 renderChips();
 renderMemberSelect();
+renderHero();
 renderGrid();
 renderGenreChips();
 syncRatingInputs("5");
