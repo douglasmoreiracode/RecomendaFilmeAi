@@ -156,6 +156,45 @@ select {
   gap: 34px;
 }
 
+.storage-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.storage-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.storage-btn:hover,
+.storage-btn:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.storage-btn-danger {
+  border-color: rgba(255, 110, 140, 0.32);
+  color: #ff9db1;
+  background: rgba(255, 64, 96, 0.08);
+}
+
+.storage-btn-danger:hover,
+.storage-btn-danger:focus-visible {
+  border-color: rgba(255, 110, 140, 0.48);
+  background: rgba(255, 64, 96, 0.14);
+}
+
 .new-indications-title,
 .filter-title {
   margin: 0 0 18px;
@@ -985,6 +1024,10 @@ select {
 }
 
 @media (max-width: 899px) {
+  .storage-tools {
+    margin-bottom: 22px;
+  }
+
   .movies-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1022,6 +1065,14 @@ select {
 }
 
 @media (max-width: 640px) {
+  .storage-tools {
+    gap: 10px;
+  }
+
+  .storage-btn {
+    width: 100%;
+  }
+
   .app-shell {
     width: min(100% - 24px, 100%);
     padding-top: 18px;

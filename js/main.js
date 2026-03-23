@@ -8,6 +8,10 @@ const heroBy = document.querySelector("#hero-by");
 const heroTags = document.querySelector("#hero-tags");
 const heroTrailerBtn = document.querySelector("#hero-trailer-btn");
 const openAddModalBtn = document.querySelector("#open-add-modal");
+const exportDataBtn = document.querySelector("#export-data-btn");
+const importDataBtn = document.querySelector("#import-data-btn");
+const clearDataBtn = document.querySelector("#clear-data-btn");
+const importDataInput = document.querySelector("#import-data-input");
 const modalBackdrop = document.querySelector("#modal-backdrop");
 const modalClose = document.querySelector("#modal-close");
 const modalTitle = document.querySelector("#add-modal-title");
@@ -29,6 +33,7 @@ const coverFileInput = document.querySelector("#capa-file-input");
 const coverPreview = document.querySelector("#capa-preview");
 
 const availableGenres = ["Suspense", "Drama", "Ação", "Comédia", "Ficção", "Terror"];
+const STORAGE_KEY = "recomenda-filmeai:recommendations:v1";
 
 const initialRecommendations = [
   {
@@ -94,12 +99,66 @@ let lastFocusedElement = null;
 let lastTrailerFocusedElement = null;
 let toastTimer = null;
 
+function loadStoredRecommendations() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return [...initialRecommendations];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [...initialRecommendations];
+    }
+
+    const normalized = normalizeRecommendations(parsed);
+    return normalized.length ? normalized : [...initialRecommendations];
+  } catch {
+    return [...initialRecommendations];
+  }
+}
+
+function saveRecommendations() {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.recommendations));
+  } catch {
+    showToast("Nao foi possivel salvar localmente neste navegador.");
+  }
+}
+
+function clearStoredRecommendations() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    showToast("Nao foi possivel limpar os dados salvos neste navegador.");
+  }
+}
+
 function getMembers() {
   return state.members;
 }
 
 function syncMembersFromRecommendations() {
   state.members = [...new Set(state.recommendations.map((item) => item.indicadoPor))];
+}
+
+function syncStateFromRecommendations() {
+  syncMembersFromRecommendations();
+
+  if (
+    state.activeMember !== "Todos" &&
+    !state.recommendations.some((item) => item.indicadoPor === state.activeMember)
+  ) {
+    state.activeMember = "Todos";
+  }
+}
+
+function refreshApp() {
+  syncStateFromRecommendations();
+  renderChips();
+  renderMemberSelect();
+  renderHero();
+  renderGrid();
 }
 
 function capitalizeType(tipo) {
@@ -162,6 +221,48 @@ function ensureMemberExists(name) {
 
   state.members = [...state.members, normalizedName];
   return normalizedName;
+}
+
+function getExportPayload() {
+  return {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    recommendations: state.recommendations
+  };
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function normalizeRecommendations(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  return list
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      id: String(item.id ?? `r${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+      tipo: item.tipo === "serie" ? "serie" : "filme",
+      titulo: String(item.titulo ?? "").trim(),
+      indicadoPor: normalizeName(String(item.indicadoPor ?? "")),
+      nota: Number.isFinite(Number(item.nota)) ? Number(item.nota) : 0,
+      plataforma: String(item.plataforma ?? "").trim(),
+      generos: Array.isArray(item.generos) ? item.generos.map((genre) => String(genre)) : [],
+      capa: String(item.capa ?? "assets/images/placeholder.jpg"),
+      trailer: String(item.trailer ?? "").trim(),
+      criadoEm: Number.isFinite(Number(item.criadoEm)) ? Number(item.criadoEm) : Date.now()
+    }))
+    .filter((item) => item.titulo && item.indicadoPor && item.plataforma);
 }
 
 function buildTagMarkup(tags) {
@@ -721,6 +822,8 @@ function handleSubmit(event) {
       state.activeMember = "Todos";
     }
 
+    saveRecommendations();
+    syncStateFromRecommendations();
     renderChips();
     renderMemberSelect();
     renderHero();
@@ -743,14 +846,8 @@ function handleDeleteRecommendation() {
   }
 
   state.recommendations = state.recommendations.filter((item) => item.id !== deletedId);
-  syncMembersFromRecommendations();
-
-  if (
-    state.activeMember !== "Todos" &&
-    !state.recommendations.some((item) => item.indicadoPor === state.activeMember)
-  ) {
-    state.activeMember = "Todos";
-  }
+  saveRecommendations();
+  syncStateFromRecommendations();
 
   renderChips();
   renderMemberSelect();
@@ -758,6 +855,61 @@ function handleDeleteRecommendation() {
   renderGrid();
   closeModal();
   showToast("Recomendação removida com sucesso.");
+}
+
+function handleExportData() {
+  const dateSuffix = new Date().toISOString().slice(0, 10);
+  downloadJson(`recomenda-filmeai-backup-${dateSuffix}.json`, getExportPayload());
+  showToast("Backup exportado com sucesso.");
+}
+
+function handleImportedFile(file) {
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = typeof reader.result === "string" ? reader.result : "";
+      const parsed = JSON.parse(raw);
+      const incoming = Array.isArray(parsed) ? parsed : parsed.recommendations;
+      const normalized = normalizeRecommendations(incoming);
+
+      if (!normalized.length) {
+        showToast("Arquivo sem recomendacoes validas para importar.");
+        return;
+      }
+
+      state.recommendations = normalized;
+      saveRecommendations();
+      refreshApp();
+      showToast("Dados importados com sucesso.");
+    } catch {
+      showToast("Nao foi possivel importar este arquivo.");
+    } finally {
+      if (importDataInput) {
+        importDataInput.value = "";
+      }
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function handleClearData() {
+  const shouldClear = window.confirm(
+    "Deseja remover todas as recomendacoes salvas neste navegador? Esta acao nao pode ser desfeita."
+  );
+
+  if (!shouldClear) {
+    return;
+  }
+
+  state.recommendations = [...initialRecommendations];
+  clearStoredRecommendations();
+  refreshApp();
+  showToast("Dados locais limpos. A lista padrao foi restaurada.");
 }
 
 function setupEvents() {
@@ -830,8 +982,14 @@ function setupEvents() {
   });
 
   openAddModalBtn?.addEventListener("click", () => openModal());
+  exportDataBtn?.addEventListener("click", handleExportData);
+  importDataBtn?.addEventListener("click", () => importDataInput?.click());
+  clearDataBtn?.addEventListener("click", handleClearData);
   modalClose?.addEventListener("click", closeModal);
   deleteBtn?.addEventListener("click", handleDeleteRecommendation);
+  importDataInput?.addEventListener("change", () => {
+    handleImportedFile(importDataInput.files?.[0]);
+  });
 
   modalBackdrop?.addEventListener("click", (event) => {
     if (event.target === modalBackdrop) {
@@ -929,6 +1087,8 @@ function setupEvents() {
   });
 }
 
+state.recommendations = loadStoredRecommendations();
+syncStateFromRecommendations();
 renderChips();
 renderMemberSelect();
 renderHero();

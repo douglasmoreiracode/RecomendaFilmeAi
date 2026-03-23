@@ -36,6 +36,15 @@
         </button>
       </header>
 
+      <section class="storage-tools" aria-label="Ferramentas de dados">
+        <button class="storage-btn" type="button" id="export-data-btn">Exportar dados</button>
+        <button class="storage-btn" type="button" id="import-data-btn">Importar dados</button>
+        <button class="storage-btn storage-btn-danger" type="button" id="clear-data-btn">
+          Limpar tudo
+        </button>
+        <input id="import-data-input" type="file" accept="application/json,.json" hidden />
+      </section>
+
       <main class="main-grid">
         <section class="new-indications">
           <h2 class="new-indications-title">
@@ -215,6 +224,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-    <script type="module" src="js/main.js"></script>
+    <script src="js/main.js"></script>
   </body>
 </html>
