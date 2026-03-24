@@ -22,6 +22,10 @@ const trailerModalBackdrop = document.querySelector("#trailer-modal-backdrop");
 const trailerModalClose = document.querySelector("#trailer-modal-close");
 const trailerModalTitle = document.querySelector("#trailer-modal-title");
 const trailerFrameWrap = document.querySelector("#trailer-frame-wrap");
+const importModalBackdrop = document.querySelector("#import-modal-backdrop");
+const importModalClose = document.querySelector("#import-modal-close");
+const importForm = document.querySelector("#import-form");
+const importMemberInput = document.querySelector("#import-member-input");
 const indicadoSelect = document.querySelector("#indicado-select");
 const indicadoNovoInput = document.querySelector("#indicado-novo");
 const notaInput = document.querySelector("#nota-input");
@@ -97,7 +101,9 @@ const state = {
 
 let lastFocusedElement = null;
 let lastTrailerFocusedElement = null;
+let lastImportFocusedElement = null;
 let toastTimer = null;
+let pendingImportedRecommendations = [];
 
 function loadStoredRecommendations() {
   try {
@@ -112,6 +118,10 @@ function loadStoredRecommendations() {
     }
 
     const normalized = normalizeRecommendations(parsed);
+    if (parsed.length === 0) {
+      return [];
+    }
+
     return normalized.length ? normalized : [...initialRecommendations];
   } catch {
     return [...initialRecommendations];
@@ -323,6 +333,48 @@ function closeTrailerModal() {
 
   if (lastTrailerFocusedElement instanceof HTMLElement) {
     lastTrailerFocusedElement.focus();
+  }
+}
+
+function setImportMemberError(message) {
+  const fieldElement = document.querySelector('[data-field="import-member"]');
+  const errorElement = document.querySelector("#error-import-member");
+
+  fieldElement?.classList.toggle("has-error", Boolean(message));
+  if (errorElement) {
+    errorElement.textContent = message;
+  }
+}
+
+function openImportModal() {
+  if (!importModalBackdrop || !importMemberInput) {
+    return;
+  }
+
+  lastImportFocusedElement = document.activeElement;
+  setImportMemberError("");
+  importMemberInput.value = "";
+  importModalBackdrop.hidden = false;
+  requestAnimationFrame(() => {
+    importMemberInput.focus();
+  });
+}
+
+function closeImportModal() {
+  if (!importModalBackdrop) {
+    return;
+  }
+
+  importModalBackdrop.hidden = true;
+  pendingImportedRecommendations = [];
+  setImportMemberError("");
+
+  if (importDataInput) {
+    importDataInput.value = "";
+  }
+
+  if (lastImportFocusedElement instanceof HTMLElement) {
+    lastImportFocusedElement.focus();
   }
 }
 
@@ -881,14 +933,12 @@ function handleImportedFile(file) {
         return;
       }
 
-      state.recommendations = normalized;
-      saveRecommendations();
-      refreshApp();
-      showToast("Dados importados com sucesso.");
+      pendingImportedRecommendations = normalized;
+      openImportModal();
     } catch {
       showToast("Nao foi possivel importar este arquivo.");
     } finally {
-      if (importDataInput) {
+      if (importDataInput && importModalBackdrop?.hidden !== false) {
         importDataInput.value = "";
       }
     }
@@ -897,19 +947,39 @@ function handleImportedFile(file) {
   reader.readAsText(file);
 }
 
+function handleImportSubmit(event) {
+  event.preventDefault();
+
+  const memberName = normalizeName(importMemberInput?.value ?? "");
+  if (!memberName) {
+    setImportMemberError("Informe o nome do membro.");
+    return;
+  }
+
+  ensureMemberExists(memberName);
+  state.recommendations = pendingImportedRecommendations.map((item) => ({
+    ...item,
+    indicadoPor: memberName
+  }));
+  saveRecommendations();
+  refreshApp();
+  closeImportModal();
+  showToast("Dados importados com sucesso.");
+}
+
 function handleClearData() {
   const shouldClear = window.confirm(
-    "Deseja remover todas as recomendacoes salvas neste navegador? Esta acao nao pode ser desfeita."
+    "Deseja criar uma nova galeria vazia neste navegador? Esta acao nao pode ser desfeita."
   );
 
   if (!shouldClear) {
     return;
   }
 
-  state.recommendations = [...initialRecommendations];
-  clearStoredRecommendations();
+  state.recommendations = [];
+  saveRecommendations();
   refreshApp();
-  showToast("Dados locais limpos. A lista padrao foi restaurada.");
+  showToast("Nova galeria criada com sucesso.");
 }
 
 function setupEvents() {
@@ -1005,6 +1075,14 @@ function setupEvents() {
     }
   });
 
+  importModalClose?.addEventListener("click", closeImportModal);
+
+  importModalBackdrop?.addEventListener("click", (event) => {
+    if (event.target === importModalBackdrop) {
+      closeImportModal();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modalBackdrop && !modalBackdrop.hidden) {
       closeModal();
@@ -1012,6 +1090,10 @@ function setupEvents() {
 
     if (event.key === "Escape" && trailerModalBackdrop && !trailerModalBackdrop.hidden) {
       closeTrailerModal();
+    }
+
+    if (event.key === "Escape" && importModalBackdrop && !importModalBackdrop.hidden) {
+      closeImportModal();
     }
   });
 
@@ -1028,6 +1110,9 @@ function setupEvents() {
       setFieldError(fieldName, errors[fieldName] ?? "");
     });
   }, true);
+
+  importForm?.addEventListener("submit", handleImportSubmit);
+  importMemberInput?.addEventListener("input", () => setImportMemberError(""));
 
   indicadoSelect?.addEventListener("change", () => {
     toggleCustomMemberField();

@@ -37,11 +37,11 @@
       </header>
 
       <section class="storage-tools" aria-label="Ferramentas de dados">
-        <button class="storage-btn" type="button" id="export-data-btn">Exportar dados</button>
-        <button class="storage-btn" type="button" id="import-data-btn">Importar dados</button>
         <button class="storage-btn storage-btn-danger" type="button" id="clear-data-btn">
-          Limpar tudo
+          Nova Galeria
         </button>
+        <button class="storage-btn" type="button" id="import-data-btn">Importar dados</button>
+        <button class="storage-btn" type="button" id="export-data-btn">Exportar dados</button>
         <input id="import-data-input" type="file" accept="application/json,.json" hidden />
       </section>
 
@@ -219,6 +219,34 @@
           </button>
         </div>
         <div class="trailer-frame-wrap" id="trailer-frame-wrap"></div>
+      </div>
+    </div>
+
+    <div class="import-modal-backdrop" id="import-modal-backdrop" hidden>
+      <div class="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+        <div class="modal-header">
+          <h3 id="import-modal-title">Importar dados</h3>
+          <button class="modal-close" type="button" id="import-modal-close" aria-label="Fechar importacao">
+            ×
+          </button>
+        </div>
+        <form class="modal-form" id="import-form" novalidate>
+          <div class="field" data-field="import-member">
+            <label for="import-member-input" class="field-label">De que membro sao os dados importados?</label>
+            <input
+              id="import-member-input"
+              name="importMember"
+              type="text"
+              maxlength="24"
+              placeholder="Nome do membro"
+              required
+            />
+            <p class="field-error" id="error-import-member"></p>
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="modal-action">Concluir importacao</button>
+          </div>
+        </form>
       </div>
     </div>
 

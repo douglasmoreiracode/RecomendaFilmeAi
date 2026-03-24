@@ -1005,6 +1005,31 @@ select {
   text-decoration: none;
 }
 
+.import-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(10px);
+  z-index: 85;
+}
+
+.import-modal-backdrop[hidden] {
+  display: none;
+}
+
+.import-modal {
+  width: min(520px, 100%);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(31, 31, 31, 0.98) 0%, rgba(18, 18, 18, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
 .toast {
   position: fixed;
   right: 18px;
