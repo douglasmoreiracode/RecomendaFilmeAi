@@ -39,56 +39,7 @@ const coverPreview = document.querySelector("#capa-preview");
 const availableGenres = ["Suspense", "Drama", "Ação", "Comédia", "Ficção", "Terror"];
 const STORAGE_KEY = "recomenda-filmeai:recommendations:v1";
 
-const initialRecommendations = [
-  {
-    id: "r1",
-    tipo: "serie",
-    titulo: "A Empregada",
-    indicadoPor: "Lucas",
-    nota: 8,
-    plataforma: "Netflix",
-    generos: ["Suspense"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 40000
-  },
-  {
-    id: "r2",
-    tipo: "filme",
-    titulo: "A Empregada",
-    indicadoPor: "Lucas",
-    nota: 9.5,
-    plataforma: "Netflix",
-    generos: ["Suspense"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 30000
-  },
-  {
-    id: "r3",
-    tipo: "serie",
-    titulo: "Ruptura",
-    indicadoPor: "Fernanda",
-    nota: 9.2,
-    plataforma: "Apple TV+",
-    generos: ["Drama"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 20000
-  },
-  {
-    id: "r4",
-    tipo: "filme",
-    titulo: "Duna",
-    indicadoPor: "Solange",
-    nota: 8.9,
-    plataforma: "Max",
-    generos: ["Ficção"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 10000
-  }
-];
+const initialRecommendations = [];
 
 const state = {
   activeMember: "Todos",
@@ -109,12 +60,12 @@ function loadStoredRecommendations() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return [...initialRecommendations];
+      return [];
     }
 
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      return [...initialRecommendations];
+      return [];
     }
 
     const normalized = normalizeRecommendations(parsed);
@@ -122,9 +73,9 @@ function loadStoredRecommendations() {
       return [];
     }
 
-    return normalized.length ? normalized : [...initialRecommendations];
+    return normalized;
   } catch {
-    return [...initialRecommendations];
+    return [];
   }
 }
 
