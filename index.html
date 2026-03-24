@@ -14,13 +14,19 @@
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
+    <div class="page-glow page-glow-left" aria-hidden="true"></div>
+    <div class="page-glow page-glow-right" aria-hidden="true"></div>
+
     <div class="app-shell">
       <header class="header">
-        <img
-          class="logo-fixed"
-          src="assets/logo/logo-recomenda-filmeai.svg"
-          alt="Recomenda FilmeAí"
-        />
+        <div class="brand-block">
+          <img
+            class="logo-fixed"
+            src="assets/logo/logo-recomenda-filmeai.svg"
+            alt="Recomenda FilmeAí"
+          />
+          <p class="brand-subtitle">Mural do grupo para descobrir o próximo filme ou série.</p>
+        </div>
 
         <button class="add-movie-block" type="button" id="open-add-modal">
           <span class="add-movie-icon-wrap" aria-hidden="true">
@@ -30,6 +36,15 @@
         </button>
       </header>
 
+      <section class="storage-tools" aria-label="Ferramentas de dados">
+        <button class="storage-btn storage-btn-danger" type="button" id="clear-data-btn">
+          Nova Galeria
+        </button>
+        <button class="storage-btn" type="button" id="import-data-btn">Importar dados</button>
+        <button class="storage-btn" type="button" id="export-data-btn">Exportar dados</button>
+        <input id="import-data-input" type="file" accept="application/json,.json" hidden />
+      </section>
+
       <main class="main-grid">
         <section class="new-indications">
           <h2 class="new-indications-title">
@@ -38,9 +53,14 @@
           </h2>
 
           <article class="hero-layout">
-            <div class="poster-stack">
+            <div class="poster-stack hero-poster-stack">
               <div class="poster-gradient" aria-hidden="true"></div>
-              <img class="hero-poster" src="assets/images/placeholder.jpg" alt="Desconhecido" />
+              <img
+                class="hero-poster"
+                id="hero-poster"
+                src="assets/images/placeholder.jpg"
+                alt="Desconhecido"
+              />
             </div>
 
             <div class="hero-info">
@@ -48,20 +68,23 @@
                 <img src="assets/icons/icon-fire.svg" alt="" aria-hidden="true" />
                 Novo
               </p>
-              <span class="hero-label">Filme</span>
-              <h3 class="hero-name">Desconhecido</h3>
+              <span class="hero-label" id="hero-label">Filme</span>
+              <h3 class="hero-name" id="hero-name">Desconhecido</h3>
+              <p class="hero-summary" id="hero-summary">
+                Uma recomendação recém-chegada para entrar na sua lista e puxar a próxima sessão do grupo.
+              </p>
 
-              <p class="hero-by">
+              <p class="hero-by" id="hero-by">
                 <img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" />
                 Indicado por <strong>Lucas</strong>
               </p>
 
-              <div class="hero-tags">
+              <div class="hero-tags" id="hero-tags">
                 <span class="platform-tag">Netflix</span>
                 <span class="platform-tag">Suspense</span>
               </div>
 
-              <button class="trailer-btn" type="button" data-title="Desconhecido" data-by="Lucas">
+              <button class="trailer-btn hero-trailer-btn" type="button" id="hero-trailer-btn">
                 <img src="assets/icons/icon-play.svg" alt="" aria-hidden="true" />
                 Assistir ao trailer
               </button>
@@ -175,15 +198,70 @@
             <input id="trailer-input" name="trailer" type="url" placeholder="https://..." />
           </div>
 
-          <button type="submit" class="modal-action" id="publish-btn" disabled>
-            Publicar recomendação
+          <div class="modal-actions">
+            <button type="button" class="modal-delete" id="delete-btn" hidden>
+              Remover recomendação
+            </button>
+            <button type="submit" class="modal-action" id="publish-btn" disabled>
+              Publicar recomendação
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="trailer-modal-backdrop" id="trailer-modal-backdrop" hidden>
+      <div class="trailer-modal" role="dialog" aria-modal="true" aria-labelledby="trailer-modal-title">
+        <div class="trailer-modal-header">
+          <h3 id="trailer-modal-title">Trailer</h3>
+          <button class="trailer-modal-close" type="button" id="trailer-modal-close" aria-label="Fechar trailer">
+            ×
           </button>
+        </div>
+        <div class="trailer-frame-wrap" id="trailer-frame-wrap"></div>
+      </div>
+    </div>
+
+    <div class="import-modal-backdrop" id="import-modal-backdrop" hidden>
+      <div class="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+        <div class="modal-header">
+          <h3 id="import-modal-title">Importar dados</h3>
+          <button class="modal-close" type="button" id="import-modal-close" aria-label="Fechar importacao">
+            ×
+          </button>
+        </div>
+        <form class="modal-form" id="import-form" novalidate>
+          <div class="field">
+            <span class="field-label">Como deseja importar?</span>
+            <div class="segmented-control" role="radiogroup" aria-label="Modo de importacao">
+              <input type="radio" id="import-mode-replace" name="importMode" value="replace" checked />
+              <label for="import-mode-replace">Substituir</label>
+              <input type="radio" id="import-mode-add" name="importMode" value="add" />
+              <label for="import-mode-add">Adicionar</label>
+            </div>
+          </div>
+
+          <div class="field" data-field="import-member">
+            <label for="import-member-input" class="field-label">De que membro sao os dados importados?</label>
+            <input
+              id="import-member-input"
+              name="importMember"
+              type="text"
+              maxlength="24"
+              placeholder="Nome do membro"
+              required
+            />
+            <p class="field-error" id="error-import-member"></p>
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="modal-action">Concluir importacao</button>
+          </div>
         </form>
       </div>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-    <script type="module" src="js/main.js"></script>
+    <script src="js/main.js"></script>
   </body>
 </html>

@@ -1,10 +1,31 @@
 const chipsRoot = document.querySelector("#member-chips");
 const gridRoot = document.querySelector("#movies-grid");
+const heroPoster = document.querySelector("#hero-poster");
+const heroLabel = document.querySelector("#hero-label");
+const heroName = document.querySelector("#hero-name");
+const heroSummary = document.querySelector("#hero-summary");
+const heroBy = document.querySelector("#hero-by");
+const heroTags = document.querySelector("#hero-tags");
+const heroTrailerBtn = document.querySelector("#hero-trailer-btn");
 const openAddModalBtn = document.querySelector("#open-add-modal");
+const exportDataBtn = document.querySelector("#export-data-btn");
+const importDataBtn = document.querySelector("#import-data-btn");
+const clearDataBtn = document.querySelector("#clear-data-btn");
+const importDataInput = document.querySelector("#import-data-input");
 const modalBackdrop = document.querySelector("#modal-backdrop");
 const modalClose = document.querySelector("#modal-close");
+const modalTitle = document.querySelector("#add-modal-title");
 const addForm = document.querySelector("#add-form");
+const deleteBtn = document.querySelector("#delete-btn");
 const publishBtn = document.querySelector("#publish-btn");
+const trailerModalBackdrop = document.querySelector("#trailer-modal-backdrop");
+const trailerModalClose = document.querySelector("#trailer-modal-close");
+const trailerModalTitle = document.querySelector("#trailer-modal-title");
+const trailerFrameWrap = document.querySelector("#trailer-frame-wrap");
+const importModalBackdrop = document.querySelector("#import-modal-backdrop");
+const importModalClose = document.querySelector("#import-modal-close");
+const importForm = document.querySelector("#import-form");
+const importMemberInput = document.querySelector("#import-member-input");
 const indicadoSelect = document.querySelector("#indicado-select");
 const indicadoNovoInput = document.querySelector("#indicado-novo");
 const notaInput = document.querySelector("#nota-input");
@@ -16,60 +37,13 @@ const coverFileInput = document.querySelector("#capa-file-input");
 const coverPreview = document.querySelector("#capa-preview");
 
 const availableGenres = ["Suspense", "Drama", "Ação", "Comédia", "Ficção", "Terror"];
+const STORAGE_KEY = "recomenda-filmeai:recommendations:v1";
 
-const initialRecommendations = [
-  {
-    id: "r1",
-    tipo: "serie",
-    titulo: "A Empregada",
-    indicadoPor: "Lucas",
-    nota: 8,
-    plataforma: "Netflix",
-    generos: ["Suspense"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 40000
-  },
-  {
-    id: "r2",
-    tipo: "filme",
-    titulo: "A Empregada",
-    indicadoPor: "Lucas",
-    nota: 9.5,
-    plataforma: "Netflix",
-    generos: ["Suspense"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 30000
-  },
-  {
-    id: "r3",
-    tipo: "serie",
-    titulo: "Ruptura",
-    indicadoPor: "Fernanda",
-    nota: 9.2,
-    plataforma: "Apple TV+",
-    generos: ["Drama"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 20000
-  },
-  {
-    id: "r4",
-    tipo: "filme",
-    titulo: "Duna",
-    indicadoPor: "Solange",
-    nota: 8.9,
-    plataforma: "Max",
-    generos: ["Ficção"],
-    capa: "assets/images/placeholder.jpg",
-    trailer: "",
-    criadoEm: Date.now() - 10000
-  }
-];
+const initialRecommendations = [];
 
 const state = {
   activeMember: "Todos",
+  members: [...new Set(initialRecommendations.map((item) => item.indicadoPor))],
   recommendations: [...initialRecommendations],
   selectedGenres: [],
   selectedCover: "assets/images/placeholder.jpg",
@@ -77,10 +51,75 @@ const state = {
 };
 
 let lastFocusedElement = null;
+let lastTrailerFocusedElement = null;
+let lastImportFocusedElement = null;
 let toastTimer = null;
+let pendingImportedRecommendations = [];
+
+function loadStoredRecommendations() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const normalized = normalizeRecommendations(parsed);
+    if (parsed.length === 0) {
+      return [];
+    }
+
+    return normalized;
+  } catch {
+    return [];
+  }
+}
+
+function saveRecommendations() {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.recommendations));
+  } catch {
+    showToast("Nao foi possivel salvar localmente neste navegador.");
+  }
+}
+
+function clearStoredRecommendations() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    showToast("Nao foi possivel limpar os dados salvos neste navegador.");
+  }
+}
 
 function getMembers() {
-  return [...new Set(state.recommendations.map((item) => item.indicadoPor))];
+  return state.members;
+}
+
+function syncMembersFromRecommendations() {
+  state.members = [...new Set(state.recommendations.map((item) => item.indicadoPor))];
+}
+
+function syncStateFromRecommendations() {
+  syncMembersFromRecommendations();
+
+  if (
+    state.activeMember !== "Todos" &&
+    !state.recommendations.some((item) => item.indicadoPor === state.activeMember)
+  ) {
+    state.activeMember = "Todos";
+  }
+}
+
+function refreshApp() {
+  syncStateFromRecommendations();
+  renderChips();
+  renderMemberSelect();
+  renderHero();
+  renderGrid();
 }
 
 function capitalizeType(tipo) {
@@ -93,6 +132,10 @@ function getFilteredRecommendations() {
   }
 
   return state.recommendations.filter((item) => item.indicadoPor === state.activeMember);
+}
+
+function getLatestRecommendation(items = state.recommendations) {
+  return [...items].sort((first, second) => second.criadoEm - first.criadoEm)[0] ?? null;
 }
 
 function createChip(member) {
@@ -109,11 +152,12 @@ function renderChips() {
   chipsRoot.innerHTML = members.map(createChip).join("");
 }
 
-function renderMemberSelect() {
+function renderMemberSelect(selectedValue = "") {
   if (!indicadoSelect) {
     return;
   }
 
+  const nextSelectedValue = selectedValue || indicadoSelect.value || "";
   const options = [
     '<option value="">Selecione</option>',
     ...getMembers().map((member) => `<option value="${member}">${member}</option>`),
@@ -121,22 +165,290 @@ function renderMemberSelect() {
   ];
 
   indicadoSelect.innerHTML = options.join("");
+
+  if (
+    nextSelectedValue &&
+    [...indicadoSelect.options].some((option) => option.value === nextSelectedValue)
+  ) {
+    indicadoSelect.value = nextSelectedValue;
+  }
+}
+
+function ensureMemberExists(name) {
+  const normalizedName = normalizeName(name);
+  if (!normalizedName || state.members.includes(normalizedName)) {
+    return normalizedName;
+  }
+
+  state.members = [...state.members, normalizedName];
+  return normalizedName;
+}
+
+function getExportPayload() {
+  return {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    recommendations: state.recommendations
+  };
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function normalizeRecommendations(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  return list
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      id: String(item.id ?? `r${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+      tipo: item.tipo === "serie" ? "serie" : "filme",
+      titulo: String(item.titulo ?? "").trim(),
+      indicadoPor: normalizeName(String(item.indicadoPor ?? "")),
+      nota: Number.isFinite(Number(item.nota)) ? Number(item.nota) : 0,
+      plataforma: String(item.plataforma ?? "").trim(),
+      generos: Array.isArray(item.generos) ? item.generos.map((genre) => String(genre)) : [],
+      capa: String(item.capa ?? "assets/images/placeholder.jpg"),
+      trailer: String(item.trailer ?? "").trim(),
+      criadoEm: Number.isFinite(Number(item.criadoEm)) ? Number(item.criadoEm) : Date.now()
+    }))
+    .filter((item) => item.titulo && item.indicadoPor && item.plataforma);
+}
+
+function buildTagMarkup(tags) {
+  return tags.map((tag) => `<span class="platform-tag">${tag}</span>`).join("");
+}
+
+function buildHeroSummary(item) {
+  const tipo = capitalizeType(item.tipo).toLowerCase();
+  const generos = item.generos.length ? item.generos.join(", ").toLowerCase() : "novas descobertas";
+  return `${item.indicadoPor} colocou este ${tipo} no radar do grupo com clima de ${generos} em ${item.plataforma}.`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function getTrailerEmbedUrl(url) {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const host = parsedUrl.hostname.replace(/^www\./, "");
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const videoId = parsedUrl.searchParams.get("v");
+      return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : "";
+    }
+
+    if (host === "youtu.be") {
+      const videoId = parsedUrl.pathname.slice(1);
+      return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : "";
+    }
+
+    if (host === "vimeo.com") {
+      const videoId = parsedUrl.pathname.split("/").filter(Boolean)[0];
+      return videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=1` : "";
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function closeTrailerModal() {
+  if (!trailerModalBackdrop || !trailerFrameWrap) {
+    return;
+  }
+
+  trailerModalBackdrop.hidden = true;
+  trailerFrameWrap.innerHTML = "";
+
+  if (lastTrailerFocusedElement instanceof HTMLElement) {
+    lastTrailerFocusedElement.focus();
+  }
+}
+
+function setImportMemberError(message) {
+  const fieldElement = document.querySelector('[data-field="import-member"]');
+  const errorElement = document.querySelector("#error-import-member");
+
+  fieldElement?.classList.toggle("has-error", Boolean(message));
+  if (errorElement) {
+    errorElement.textContent = message;
+  }
+}
+
+function openImportModal() {
+  if (!importModalBackdrop || !importMemberInput || !importForm) {
+    return;
+  }
+
+  lastImportFocusedElement = document.activeElement;
+  setImportMemberError("");
+  importForm.reset();
+  importMemberInput.value = "";
+  importModalBackdrop.hidden = false;
+  requestAnimationFrame(() => {
+    importMemberInput.focus();
+  });
+}
+
+function closeImportModal() {
+  if (!importModalBackdrop) {
+    return;
+  }
+
+  importModalBackdrop.hidden = true;
+  pendingImportedRecommendations = [];
+  setImportMemberError("");
+
+  if (importDataInput) {
+    importDataInput.value = "";
+  }
+
+  if (lastImportFocusedElement instanceof HTMLElement) {
+    lastImportFocusedElement.focus();
+  }
+}
+
+function openTrailerModal({ title, trailer }) {
+  if (!trailerModalBackdrop || !trailerFrameWrap) {
+    return;
+  }
+
+  if (!trailer) {
+    showToast("Trailer não informado para esta recomendação.");
+    return;
+  }
+
+  lastTrailerFocusedElement = document.activeElement;
+  const embedUrl = getTrailerEmbedUrl(trailer);
+
+  if (trailerModalTitle) {
+    trailerModalTitle.textContent = `Trailer de ${title}`;
+  }
+
+  if (embedUrl) {
+    trailerFrameWrap.innerHTML = `<iframe class="trailer-embed" src="${embedUrl}" title="Trailer de ${escapeHtml(title)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  } else {
+    trailerFrameWrap.innerHTML = `
+      <div class="trailer-fallback">
+        <strong>Este trailer nao pode ser incorporado diretamente.</strong>
+        <p>Abra o link original para assistir ao video completo em uma nova aba.</p>
+        <a href="${trailer}" target="_blank" rel="noopener noreferrer">Abrir trailer</a>
+      </div>
+    `;
+  }
+
+  trailerModalBackdrop.hidden = false;
+  trailerModalClose?.focus();
+}
+
+function renderHero() {
+  const filtered = getFilteredRecommendations();
+  const featured = getLatestRecommendation(filtered) ?? getLatestRecommendation();
+
+  if (!featured) {
+    if (heroPoster instanceof HTMLImageElement) {
+      heroPoster.src = "assets/images/placeholder.jpg";
+      heroPoster.alt = "Nenhuma recomendação";
+    }
+
+    if (heroLabel) {
+      heroLabel.textContent = "Filme ou série";
+    }
+
+    if (heroName) {
+      heroName.textContent = "Adicione a primeira recomendação";
+    }
+
+    if (heroSummary) {
+      heroSummary.textContent = "Publique uma sugestão para abrir a lista de recomendações.";
+    }
+
+    if (heroBy) {
+      heroBy.innerHTML =
+        '<img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" /> Indicado por <strong>ninguém ainda</strong>';
+    }
+
+    if (heroTags) {
+      heroTags.innerHTML = "";
+    }
+
+    if (heroTrailerBtn instanceof HTMLButtonElement) {
+      heroTrailerBtn.dataset.trailer = "";
+      heroTrailerBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (heroPoster instanceof HTMLImageElement) {
+    heroPoster.src = featured.capa || "assets/images/placeholder.jpg";
+    heroPoster.alt = featured.titulo;
+  }
+
+  if (heroLabel) {
+    heroLabel.textContent = capitalizeType(featured.tipo);
+  }
+
+  if (heroName) {
+    heroName.textContent = featured.titulo;
+  }
+
+  if (heroSummary) {
+    heroSummary.textContent = buildHeroSummary(featured);
+  }
+
+  if (heroBy) {
+    heroBy.innerHTML = `<img src="assets/icons/icon-user.svg" alt="" aria-hidden="true" /> Indicado por <strong>${featured.indicadoPor}</strong>`;
+  }
+
+  if (heroTags) {
+    heroTags.innerHTML = buildTagMarkup([featured.plataforma, ...featured.generos.slice(0, 2)]);
+  }
+
+  if (heroTrailerBtn instanceof HTMLButtonElement) {
+    heroTrailerBtn.dataset.trailer = featured.trailer;
+    heroTrailerBtn.setAttribute("aria-label", `Assistir ao trailer de ${featured.titulo}`);
+  }
 }
 
 function createMovieCard(item) {
   const ratingColor = item.nota >= 9 ? "purple" : "red";
+  const highlightedClass = item.nota >= 9 ? "is-highlighted" : "";
   const generosMarkup = item.generos
     .slice(0, 2)
     .map((genero) => `<span class="card-tag">${genero}</span>`)
     .join("");
 
   return `
-    <article class="movie-card" aria-label="${item.titulo}">
-      <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
-      <button class="edit-card-btn" type="button" data-edit-id="${item.id}" aria-label="Editar recomendação">
-        ✎
-      </button>
-      <span class="movie-rating ${ratingColor}">${item.nota}</span>
+    <article class="movie-card ${highlightedClass}" aria-label="${item.titulo}" data-trailer="${item.trailer}" data-title="${item.titulo}" tabindex="0" role="button">
+      <div class="card-image-wrap">
+        <img class="movie-image" src="${item.capa || "assets/images/placeholder.jpg"}" alt="${item.titulo}" />
+        <button class="edit-card-btn" type="button" data-edit-id="${item.id}" aria-label="Editar recomendação">
+          ✎
+        </button>
+        <span class="movie-rating ${ratingColor}">${item.nota}</span>
+      </div>
       <div class="movie-body">
         <p class="movie-type">${capitalizeType(item.tipo)}</p>
         <h3 class="movie-title">${item.titulo}</h3>
@@ -165,7 +477,7 @@ function renderGrid() {
   const filtered = getFilteredRecommendations();
 
   if (!filtered.length) {
-    gridRoot.innerHTML = "<p>Nenhuma indicação para este membro.</p>";
+    gridRoot.innerHTML = '<p class="empty-state">Nenhuma indicação para este membro no momento.</p>';
     return;
   }
 
@@ -212,6 +524,7 @@ function openModal(recommendation = null) {
     modalBackdrop.classList.add("is-open");
   });
 
+  renderMemberSelect(recommendation?.indicadoPor ?? "");
   addForm.reset();
   state.selectedGenres = [];
   state.editingId = recommendation?.id ?? null;
@@ -226,6 +539,14 @@ function openModal(recommendation = null) {
 
   if (publishBtn) {
     publishBtn.textContent = state.editingId ? "Salvar alterações" : "Publicar recomendação";
+  }
+
+  if (modalTitle) {
+    modalTitle.textContent = state.editingId ? "Editar recomendação" : "Adicionar recomendação";
+  }
+
+  if (deleteBtn) {
+    deleteBtn.hidden = !state.editingId;
   }
 
   if (recommendation) {
@@ -297,6 +618,8 @@ function closeModal() {
   if (lastFocusedElement instanceof HTMLElement) {
     lastFocusedElement.focus();
   }
+
+  state.editingId = null;
 }
 
 function syncRatingInputs(value) {
@@ -411,12 +734,13 @@ function toggleCustomMemberField() {
 function buildPayload() {
   const formData = new FormData(addForm);
   const nota = Number(formData.get("nota"));
+  const indicadoPor = ensureMemberExists(getSelectedMember());
 
   return {
     id: state.editingId ?? `r${Date.now()}`,
     tipo: String(formData.get("tipo") ?? "filme"),
     titulo: String(formData.get("titulo") ?? "").trim(),
-    indicadoPor: getSelectedMember(),
+    indicadoPor,
     nota: Number(nota.toFixed(1)),
     plataforma: String(formData.get("plataforma") ?? "").trim(),
     generos: [...state.selectedGenres],
@@ -486,6 +810,7 @@ function handleSubmit(event) {
   }
 
   const payload = buildPayload();
+  const isEditing = Boolean(state.editingId);
   setLoadingState(true);
 
   setTimeout(() => {
@@ -501,14 +826,125 @@ function handleSubmit(event) {
       state.activeMember = "Todos";
     }
 
+    saveRecommendations();
+    syncStateFromRecommendations();
     renderChips();
     renderMemberSelect();
+    renderHero();
     renderGrid();
     setLoadingState(false);
     closeModal();
-    showToast(state.editingId ? "Recomendação alterada com sucesso ✨" : "Recomendação adicionada com sucesso 🎬");
-    state.editingId = null;
+    showToast(isEditing ? "Recomendação alterada com sucesso ✨" : "Recomendação adicionada com sucesso 🎬");
   }, 700);
+}
+
+function handleDeleteRecommendation() {
+  if (!state.editingId) {
+    return;
+  }
+
+  const deletedId = state.editingId;
+  const deletedRecommendation = state.recommendations.find((item) => item.id === deletedId);
+  if (!deletedRecommendation) {
+    return;
+  }
+
+  state.recommendations = state.recommendations.filter((item) => item.id !== deletedId);
+  saveRecommendations();
+  syncStateFromRecommendations();
+
+  renderChips();
+  renderMemberSelect();
+  renderHero();
+  renderGrid();
+  closeModal();
+  showToast("Recomendação removida com sucesso.");
+}
+
+function handleExportData() {
+  const dateSuffix = new Date().toISOString().slice(0, 10);
+  downloadJson(`recomenda-filmeai-backup-${dateSuffix}.json`, getExportPayload());
+  showToast("Backup exportado com sucesso.");
+}
+
+function handleImportedFile(file) {
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = typeof reader.result === "string" ? reader.result : "";
+      const parsed = JSON.parse(raw);
+      const incoming = Array.isArray(parsed) ? parsed : parsed.recommendations;
+      const normalized = normalizeRecommendations(incoming);
+
+      if (!normalized.length) {
+        showToast("Arquivo sem recomendacoes validas para importar.");
+        return;
+      }
+
+      pendingImportedRecommendations = normalized;
+      openImportModal();
+    } catch {
+      showToast("Nao foi possivel importar este arquivo.");
+    } finally {
+      if (importDataInput && importModalBackdrop?.hidden !== false) {
+        importDataInput.value = "";
+      }
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function handleImportSubmit(event) {
+  event.preventDefault();
+
+  const memberName = normalizeName(importMemberInput?.value ?? "");
+  if (!importForm) {
+    return;
+  }
+
+  const formData = new FormData(importForm);
+  const importMode = formData.get("importMode") === "add" ? "add" : "replace";
+  if (!memberName) {
+    setImportMemberError("Informe o nome do membro.");
+    return;
+  }
+
+  ensureMemberExists(memberName);
+  const importedRecommendations = pendingImportedRecommendations.map((item) => ({
+    ...item,
+    id: `r${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    indicadoPor: memberName
+  }));
+
+  state.recommendations =
+    importMode === "add"
+      ? [...importedRecommendations, ...state.recommendations]
+      : importedRecommendations;
+
+  saveRecommendations();
+  refreshApp();
+  closeImportModal();
+  showToast("Dados importados com sucesso.");
+}
+
+function handleClearData() {
+  const shouldClear = window.confirm(
+    "Deseja criar uma nova galeria vazia neste navegador? Esta acao nao pode ser desfeita."
+  );
+
+  if (!shouldClear) {
+    return;
+  }
+
+  state.recommendations = [];
+  saveRecommendations();
+  refreshApp();
+  showToast("Nova galeria criada com sucesso.");
 }
 
 function setupEvents() {
@@ -525,6 +961,7 @@ function setupEvents() {
 
     state.activeMember = member;
     renderChips();
+    renderHero();
     renderGrid();
   });
 
@@ -544,22 +981,50 @@ function setupEvents() {
       return;
     }
 
-    const trailerBtn = target.closest(".trailer-btn");
-    if (!(trailerBtn instanceof HTMLButtonElement)) {
+    const movieCard = target.closest(".movie-card");
+    if (!(movieCard instanceof HTMLElement)) {
       return;
     }
 
-    const trailer = trailerBtn.dataset.trailer;
-    if (trailer) {
-      window.open(trailer, "_blank", "noopener,noreferrer");
+    openTrailerModal({
+      title: movieCard.dataset.title || "Trailer",
+      trailer: movieCard.dataset.trailer || ""
+    });
+  });
+
+  gridRoot?.addEventListener("keydown", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.classList.contains("movie-card")) {
       return;
     }
 
-    showToast("Trailer não informado para esta recomendação.");
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    openTrailerModal({
+      title: target.dataset.title || "Trailer",
+      trailer: target.dataset.trailer || ""
+    });
+  });
+
+  heroTrailerBtn?.addEventListener("click", () => {
+    openTrailerModal({
+      title: heroName?.textContent || "Trailer",
+      trailer: heroTrailerBtn.dataset.trailer || ""
+    });
   });
 
   openAddModalBtn?.addEventListener("click", () => openModal());
+  exportDataBtn?.addEventListener("click", handleExportData);
+  importDataBtn?.addEventListener("click", () => importDataInput?.click());
+  clearDataBtn?.addEventListener("click", handleClearData);
   modalClose?.addEventListener("click", closeModal);
+  deleteBtn?.addEventListener("click", handleDeleteRecommendation);
+  importDataInput?.addEventListener("change", () => {
+    handleImportedFile(importDataInput.files?.[0]);
+  });
 
   modalBackdrop?.addEventListener("click", (event) => {
     if (event.target === modalBackdrop) {
@@ -567,9 +1032,33 @@ function setupEvents() {
     }
   });
 
+  trailerModalClose?.addEventListener("click", closeTrailerModal);
+
+  trailerModalBackdrop?.addEventListener("click", (event) => {
+    if (event.target === trailerModalBackdrop) {
+      closeTrailerModal();
+    }
+  });
+
+  importModalClose?.addEventListener("click", closeImportModal);
+
+  importModalBackdrop?.addEventListener("click", (event) => {
+    if (event.target === importModalBackdrop) {
+      closeImportModal();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && modalBackdrop && !modalBackdrop.hidden) {
       closeModal();
+    }
+
+    if (event.key === "Escape" && trailerModalBackdrop && !trailerModalBackdrop.hidden) {
+      closeTrailerModal();
+    }
+
+    if (event.key === "Escape" && importModalBackdrop && !importModalBackdrop.hidden) {
+      closeImportModal();
     }
   });
 
@@ -587,9 +1076,23 @@ function setupEvents() {
     });
   }, true);
 
+  importForm?.addEventListener("submit", handleImportSubmit);
+  importMemberInput?.addEventListener("input", () => setImportMemberError(""));
+
   indicadoSelect?.addEventListener("change", () => {
     toggleCustomMemberField();
     updatePublishButtonState();
+  });
+
+  indicadoNovoInput?.addEventListener("blur", () => {
+    const normalizedName = normalizeName(indicadoNovoInput.value);
+    if (!normalizedName) {
+      return;
+    }
+
+    ensureMemberExists(normalizedName);
+    renderMemberSelect("__novo__");
+    indicadoNovoInput.value = normalizedName;
   });
 
   notaInput?.addEventListener("input", () => {
@@ -634,8 +1137,11 @@ function setupEvents() {
   });
 }
 
+state.recommendations = loadStoredRecommendations();
+syncStateFromRecommendations();
 renderChips();
 renderMemberSelect();
+renderHero();
 renderGrid();
 renderGenreChips();
 syncRatingInputs("5");
