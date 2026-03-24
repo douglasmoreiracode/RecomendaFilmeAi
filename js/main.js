@@ -298,12 +298,13 @@ function setImportMemberError(message) {
 }
 
 function openImportModal() {
-  if (!importModalBackdrop || !importMemberInput) {
+  if (!importModalBackdrop || !importMemberInput || !importForm) {
     return;
   }
 
   lastImportFocusedElement = document.activeElement;
   setImportMemberError("");
+  importForm.reset();
   importMemberInput.value = "";
   importModalBackdrop.hidden = false;
   requestAnimationFrame(() => {
@@ -902,16 +903,29 @@ function handleImportSubmit(event) {
   event.preventDefault();
 
   const memberName = normalizeName(importMemberInput?.value ?? "");
+  if (!importForm) {
+    return;
+  }
+
+  const formData = new FormData(importForm);
+  const importMode = formData.get("importMode") === "add" ? "add" : "replace";
   if (!memberName) {
     setImportMemberError("Informe o nome do membro.");
     return;
   }
 
   ensureMemberExists(memberName);
-  state.recommendations = pendingImportedRecommendations.map((item) => ({
+  const importedRecommendations = pendingImportedRecommendations.map((item) => ({
     ...item,
+    id: `r${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     indicadoPor: memberName
   }));
+
+  state.recommendations =
+    importMode === "add"
+      ? [...importedRecommendations, ...state.recommendations]
+      : importedRecommendations;
+
   saveRecommendations();
   refreshApp();
   closeImportModal();

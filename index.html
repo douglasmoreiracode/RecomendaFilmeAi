@@ -231,6 +231,16 @@
           </button>
         </div>
         <form class="modal-form" id="import-form" novalidate>
+          <div class="field">
+            <span class="field-label">Como deseja importar?</span>
+            <div class="segmented-control" role="radiogroup" aria-label="Modo de importacao">
+              <input type="radio" id="import-mode-replace" name="importMode" value="replace" checked />
+              <label for="import-mode-replace">Substituir</label>
+              <input type="radio" id="import-mode-add" name="importMode" value="add" />
+              <label for="import-mode-add">Adicionar</label>
+            </div>
+          </div>
+
           <div class="field" data-field="import-member">
             <label for="import-member-input" class="field-label">De que membro sao os dados importados?</label>
             <input
